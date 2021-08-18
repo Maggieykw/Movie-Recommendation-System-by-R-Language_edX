@@ -1,5 +1,5 @@
 ##########################################################
-# Create edx set, validation set (final hold-out test set)
+# 0.Create edx set, validation set (final hold-out test set)
 ##########################################################
 
 # Note: this process could take a couple of minutes
@@ -50,6 +50,10 @@ edx <- rbind(edx, removed)
 
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
+##########################################################
+# 1.Create a movie recommendation system using the MovieLens dataset.
+##########################################################
+
 train_set <- edx
 test_set <- validation
 
@@ -57,14 +61,22 @@ RMSE <- function(true_ratings, predicted_ratings){
   sqrt(mean((true_ratings - predicted_ratings)^2))
 }
 
+##########################################################
+# 1a.Consider average in the model only
+##########################################################
+
 mu_hat <- mean(train_set$rating)
 naive_rmse <- RMSE(test_set$rating, mu_hat)
 #naive_rmse #for result testing
 
 #rmse_results <- data_frame(method = "Just the average", RMSE = naive_rmse) #for result testing
 #rmse_results #for result testing
+#RMSE of including average only: 1.0612018
 
-#Add movie effect into model
+##########################################################
+# 1b.Add movie effect into model
+##########################################################
+
 movie_avgs <- train_set %>% 
   group_by(movieId) %>% 
   summarize(b_i = mean(rating - mu_hat))
@@ -76,13 +88,16 @@ predicted_ratings <- mu_hat + test_set %>%
 model_1_rmse <- RMSE(predicted_ratings, test_set$rating)
 #model_1_rmse #for result testing
 
-#rmse_results <- data_frame(method="Movie Effect Model",RMSE = model_1_rmse ) #for result testing
 #rmse_results <- bind_rows(rmse_results, #for result testing
                           #data_frame(method="Movie Effect Model",
                                      #RMSE = model_1_rmse ))
 #rmse_results #for result testing
+#RMSE of including average and movie effect model: 0.9439087
 
-#Add user-specifc effect into model
+##########################################################
+# 1c.Add user-specifc effect into model
+##########################################################
+
 user_avgs <- test_set %>% 
   left_join(movie_avgs, by='movieId') %>%
   group_by(userId) %>%
@@ -101,5 +116,12 @@ model_2_rmse <- RMSE(predicted_ratings, test_set$rating)
                           #data_frame(method="Movie + User Effects Model",  
                                      #RMSE = model_2_rmse ))
 #rmse_results %>% knitr::kable() #for result testing
+#RMSE of including average, movie effect model and user effect model: 0.8292477 (which is the final RMSE result as well)
+
+##########################################################
+# 2.Final Result
+##########################################################
 
 data_frame("Final Result" ="Movie + User Effects Model",RMSE = model_2_rmse )%>% knitr::kable()
+
+#Final RMSE (including average, movie effect model and user effect model): 0.8292477 
