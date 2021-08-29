@@ -54,8 +54,8 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 # 1.Create a movie recommendation system using the MovieLens dataset.
 ##########################################################
 
-RMSE <- function(true_ratings, predicted_ratings){
-  sqrt(mean((true_ratings - predicted_ratings)^2))
+RMSE <- function(true_rating, predicted_rating){
+  sqrt(mean((true_rating - predicted_rating)^2))
 }
 
 ##########################################################
@@ -76,13 +76,13 @@ rmse_results <- data_frame("Predictive Method" = "Just the average", RMSE = naiv
 
 movie_avgs <- edx %>% 
   group_by(movieId) %>% 
-  summarize(b_i = mean(rating - mu_hat))
+  summarize(b_m = mean(rating - mu_hat))
 
-predicted_ratings <- mu_hat + validation %>% 
+predicted_rating <- mu_hat + validation %>% 
   left_join(movie_avgs, by='movieId') %>%
-  .$b_i
+  .$b_m
 
-model_1_rmse <- RMSE(predicted_ratings, validation$rating)
+model_1_rmse <- RMSE(predicted_rating, validation$rating)
 #model_1_rmse #for result testing
 
 rmse_results <- bind_rows(rmse_results,
@@ -98,15 +98,15 @@ rmse_results <- bind_rows(rmse_results,
 user_avgs <- edx %>% 
   left_join(movie_avgs, by='movieId') %>%
   group_by(userId) %>%
-  summarize(b_u = mean(rating - mu_hat - b_i))
+  summarize(b_u = mean(rating - mu_hat - b_m))
 
-predicted_ratings <- validation %>% 
+predicted_rating <- validation %>% 
   left_join(movie_avgs, by='movieId') %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(pred = mu_hat + b_i + b_u) %>%
+  mutate(pred = mu_hat + b_m + b_u) %>%
   .$pred
 
-model_2_rmse <- RMSE(predicted_ratings, validation$rating)
+model_2_rmse <- RMSE(predicted_rating, validation$rating)
 #model_2_rmse #for result testing
 
 rmse_results <- bind_rows(rmse_results,
@@ -127,12 +127,12 @@ just_the_sum <- edx %>%
   summarize(s = sum(rating - mu_hat), n_i = n())
 
 rmses <- sapply(lambdas, function(l){
-  predicted_ratings <- validation %>% 
+  predicted_rating <- validation %>% 
     left_join(just_the_sum, by='movieId') %>% 
-    mutate(b_i = s/(n_i+l)) %>%
-    mutate(pred = mu_hat + b_i) %>%
-    pull(pred)
-  return(RMSE(predicted_ratings, validation$rating))
+    mutate(b_m = s/(n_i+l)) %>%
+    mutate(pred = mu_hat + b_m) %>%
+    .$pred
+  return(RMSE(predicted_rating, validation$rating))
 })
 
 #qplot(lambdas, rmses)  
@@ -142,15 +142,15 @@ rmses <- sapply(lambdas, function(l){
 lambda <- lambdas[which.min(rmses)]
 movie_reg_avgs <- edx %>% 
   group_by(movieId) %>% 
-  summarize(b_i2 = sum(rating - mu_hat)/(n()+lambda), n_i = n()) 
+  summarize(b_m2 = sum(rating - mu_hat)/(n()+lambda), n_i = n()) 
 
-predicted_ratings <- validation %>% 
+predicted_rating <- validation %>% 
   left_join(movie_reg_avgs, by = "movieId") %>%
   left_join(user_avgs, by='userId') %>%
-  mutate(pred = mu_hat + b_u+ b_i2) %>%
+  mutate(pred = mu_hat + b_u+ b_m2) %>%
   .$pred
 
-model_3_rmse <- RMSE(predicted_ratings, validation$rating)
+model_3_rmse <- RMSE(predicted_rating, validation$rating)
 #model_3_rmse #for result testing
 
 rmse_results <- bind_rows(rmse_results,
@@ -172,23 +172,22 @@ rmses <- sapply(lambdas, function(l){
   
   mu_hat <- mean(edx$rating)
   
-  b_i <- edx %>% 
+  b_m <- edx %>% 
     group_by(movieId) %>%
-    summarize(b_i = sum(rating - mu_hat)/(n()+l))
+    summarize(b_m = sum(rating - mu_hat)/(n()+l))
   
   b_u <- edx %>% 
-    left_join(b_i, by="movieId") %>%
+    left_join(b_m, by="movieId") %>%
     group_by(userId) %>%
-    summarize(b_u = sum(rating - b_i - mu_hat)/(n()+l))
+    summarize(b_u = sum(rating - b_m - mu_hat)/(n()+l))
   
-  predicted_ratings <- 
-    validation %>% 
-    left_join(b_i, by = "movieId") %>%
+  predicted_rating <- validation %>% 
+    left_join(b_m, by = "movieId") %>%
     left_join(b_u, by = "userId") %>%
-    mutate(pred = mu_hat + b_i + b_u) %>%
-    pull(pred)
+    mutate(pred = mu_hat + b_m + b_u) %>%
+    .$pred
   
-  return(RMSE(predicted_ratings, validation$rating))
+  return(RMSE(predicted_rating, validation$rating))
 })
 
 
@@ -200,20 +199,20 @@ lambda <- lambdas[which.min(rmses)]
 
 movie_reg_avgs <- edx %>% 
   group_by(movieId) %>% 
-  summarize(b_i2 = sum(rating - mu_hat)/(n()+lambda), n_i = n()) 
+  summarize(b_m2 = sum(rating - mu_hat)/(n()+lambda), n_i = n()) 
 
 user_reg_avgs <- edx %>% 
   left_join(movie_reg_avgs, by="movieId") %>%
   group_by(userId) %>% 
-  summarize(b_u2 = sum(rating - mu_hat-b_i2)/(n()+lambda), n_i = n()) 
+  summarize(b_u2 = sum(rating - mu_hat-b_m2)/(n()+lambda), n_i = n()) 
 
-predicted_ratings <- validation %>% 
+predicted_rating <- validation %>% 
   left_join(movie_reg_avgs, by = "movieId") %>%
   left_join(user_reg_avgs, by='userId') %>%
-  mutate(pred = mu_hat + b_i2 + b_u2) %>%
+  mutate(pred = mu_hat + b_m2 + b_u2) %>%
   .$pred
 
-model_4_rmse <- RMSE(predicted_ratings, validation$rating)
+model_4_rmse <- RMSE(predicted_rating, validation$rating)
 
 rmse_results <- bind_rows(rmse_results,
                           data_frame("Predictive Method"="Regularized Movie + Regularized User Effects Model",  
